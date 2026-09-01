@@ -39,6 +39,11 @@ where this plugin shipped as a built-in.
 - **A weekly `host-compat` CI job** that re-resolves Precursor from `main` and
   runs the suite against it, so a moved contract surfaces here rather than in a
   user's install.
+- **End-to-end tests for the built bundle** (`tests/test_frontend_bundle.py`) —
+  that the host advertises and serves it, that React and the SDK stayed
+  external, and that the stylesheet shipped. These cover the failure an
+  out-of-tree plugin is most exposed to and no other test can see: a wheel that
+  installs cleanly, answers every API call, and renders nothing.
 
 ### Changed
 

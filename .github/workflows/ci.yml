@@ -61,6 +61,23 @@ jobs:
       - name: Mypy
         run: uv run mypy src tests
 
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      # `tests/test_frontend_bundle.py` asserts the host actually serves the
+      # built module and that it was compiled correctly. Those tests skip when
+      # the bundle is absent, so building it here is what keeps them from being
+      # permanently, invisibly skipped — which would leave the "installs cleanly
+      # and renders nothing" failure uncovered.
+      - name: Build the frontend bundle
+        run: |
+          npm --prefix web ci
+          npm --prefix web run build
+
       # These boot a real Precursor and let it discover the plugin through its
       # entry point, so they cover the wiring as well as the logic.
       - name: Pytest
@@ -143,6 +160,21 @@ jobs:
 
       - name: Report the host version under test
         run: uv run python -c "import precursor; print('precursor', precursor.__version__)"
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      # Built here too: how the host resolves and serves a plugin's bundle is
+      # part of the contract this job exists to watch, and the tests covering it
+      # skip without one.
+      - name: Build the frontend bundle
+        run: |
+          npm --prefix web ci
+          npm --prefix web run build
 
       - name: Pytest
         run: uv run pytest -q
