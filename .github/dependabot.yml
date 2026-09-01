@@ -11,6 +11,14 @@ updates:
     # Routine releases that already satisfy our coarse `>=` floors produce no
     # manifest PR — the lockfile stays the source of exact versions.
     versioning-strategy: increase-if-necessary
+    # `mcp` is capped below 2.0 on purpose: that release renamed the client
+    # entry points, so widening the range resolves a wheel this package cannot
+    # import. Dependabot cannot tell a deliberate cap from a stale one and will
+    # keep proposing `<3`, so say so once here. Lifting it is a code change,
+    # not a dependency bump.
+    ignore:
+      - dependency-name: "mcp"
+        update-types: ["version-update:semver-major"]
     groups:
       # Group only minor/patch bumps; majors get their own PR so a breaking
       # upgrade is never bundled with safe ones.
