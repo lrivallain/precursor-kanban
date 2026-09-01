@@ -1,19 +1,29 @@
 /**
  * Kanban — the frontend half of the `precursor-kanban` plugin.
  *
- * The section only appears when the Python package is installed (it publishes
- * the matching `section` descriptor at `/api/plugins`) *and* a GitHub repo is
- * configured. Everything the section needs — palette, icon, routing, state,
- * HTTP client — lives in this folder; core knows it only through the contract
- * in `lib/plugins.ts`.
+ * Built into one ES module that ships inside the Python wheel; Precursor
+ * imports it at runtime and this file's `registerSection` call at module scope
+ * is what makes the section exist. The section only appears when the Python
+ * package is installed and enabled — that is what publishes the matching
+ * `section` descriptor at `/api/plugins`.
+ *
+ * Everything the section needs — palette, icon, routing, state, HTTP client,
+ * styles — lives in this folder; the host knows it only through the contract in
+ * `@precursor/host` (see `web/types/precursor-host.d.ts`).
  */
 
 import { SquareKanban } from "lucide-react";
+import type { ReactNode } from "react";
 import { EmptyHero, registerSection } from "@precursor/host";
 import type { SectionHost } from "@precursor/host";
 import { KanbanBoard } from "./KanbanBoard";
 import { KanbanProvider, requestAddProject, useKanban } from "./KanbanContext";
 import { ProjectList } from "./ProjectList";
+import { installStyles } from "./styles";
+
+// Before anything renders: out of tree the host's stylesheet no longer carries
+// this bundle's utilities, so the board brings them itself.
+installStyles();
 
 /** Must match `precursor_kanban.plugin.SECTION_ID`. */
 export const KANBAN_SECTION_ID = "kanban";
@@ -153,7 +163,7 @@ registerSection({
   // to no board and so have no row here to right-click.
   newLabel: "Add a project",
   onNew: () => requestAddProject(),
-  Provider: ({ host, children }: { host: SectionHost; children: React.ReactNode }) => (
+  Provider: ({ host, children }: { host: SectionHost; children: ReactNode }) => (
     <KanbanProvider host={host}>{children}</KanbanProvider>
   ),
   Sidebar: KanbanSidebar,

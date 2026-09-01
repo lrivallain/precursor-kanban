@@ -4,8 +4,8 @@ build-backend = "hatchling.build"
 
 [project]
 name = "precursor-kanban"
-# Versioned from the host's git tags, exactly like `precursor-ai` — see
-# [tool.hatch.version] at the bottom of this file for why.
+# CalVer (YYYY.M.MICRO) derived from this repository's own git tags by hatch-vcs
+# — see [tool.hatch.version]. Tag a release `v2026.9.0`.
 dynamic = ["version"]
 description = "GitHub Projects v2 kanban board for Precursor."
 readme = "README.md"
@@ -19,49 +19,145 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Libraries :: Application Frameworks",
 ]
-# The host is a peer, not a vendored dependency: the plugin is only ever loaded
-# *by* Precursor, and pinning it here would make `precursor-ai[kanban]` a
-# circular requirement. `precursor.plugin_api` is the surface it targets.
-dependencies = ["fastapi>=0.138", "pydantic>=2.13", "mcp>=1.28"]
+# The host is a *peer*, not a dependency. The plugin is only ever imported by a
+# running Precursor, and depending on `precursor-ai` here would make
+# `precursor-ai[kanban]` a dependency cycle. `precursor.plugin_api` is the
+# surface it targets; the minimum host version it needs is in the README's
+# compatibility table.
+#
+# These three are the libraries the plugin genuinely constructs objects from on
+# its own (an APIRouter, BaseModels, an MCP Server), so they are real runtime
+# requirements even though the host also ships them. `mcp` is capped for the
+# same reason the host caps it: 2.0 renamed the client entry points.
+dependencies = ["fastapi>=0.138", "pydantic>=2.13", "mcp>=1.28,<2"]
 
+# Precursor discovers plugins through this entry-point group at startup and
+# calls `register(registry)`. Removing the package removes the section, the
+# routes and the MCP server with it.
 [project.entry-points."precursor.plugins"]
 kanban = "precursor_kanban.plugin:register"
 
 [project.urls]
-Homepage = "https://github.com/lrivallain/precursor"
-Repository = "https://github.com/lrivallain/precursor"
-Issues = "https://github.com/lrivallain/precursor/issues"
+Homepage = "https://github.com/lrivallain/precursor-kanban"
+Repository = "https://github.com/lrivallain/precursor-kanban"
+Issues = "https://github.com/lrivallain/precursor-kanban/issues"
+Changelog = "https://github.com/lrivallain/precursor-kanban/blob/main/CHANGELOG.md"
+Precursor = "https://github.com/lrivallain/precursor"
+
+# Dev tooling lives in a PEP 735 dependency group rather than an extra, so uv
+# includes it by DEFAULT on every `uv run` / `uv sync`. Groups are dev-only —
+# they are not part of the published wheel's requirements, so an end user
+# installing `precursor-kanban` never pulls the host from here.
+[dependency-groups]
+dev = [
+    # The host, for the test suite only: the tests boot a real Precursor app and
+    # let it discover this plugin, which is the only way to prove the wiring
+    # (entry point, router mounting, shared GitHub guards) still holds against a
+    # host we no longer release in lockstep with. Deliberately NOT a runtime
+    # dependency — see the note above `dependencies`.
+    #
+    # Unpinned on purpose, because it is resolved from git — see
+    # [tool.uv.sources] and the comment there.
+    "precursor-ai",
+    "ruff>=0.15",
+    "mypy>=2.1",
+    "pytest>=9.1",
+    "pytest-asyncio>=1.4",
+    "pytest-cov>=7.1",
+    "httpx>=0.28",
+]
+
+# The host is resolved from git, not PyPI, and that is a *temporary* state with a
+# concrete end condition.
+#
+# `precursor.plugin_api` — the entire contract this package compiles against —
+# landed on the host's `main` after its last release. The newest `precursor-ai`
+# on PyPI is 2026.7.0, which has no `plugin_api` module at all, so a test suite
+# resolved from PyPI cannot even import. Testing against `main` is therefore not
+# a preference for bleeding edge; it is the only host that can run these tests.
+#
+# It is also the right default afterwards: a plugin's job is to keep working
+# against the host people actually run, and `main` is where the contract moves
+# first. When a released host exposes `plugin_api`, add a PyPI floor
+# (`precursor-ai>=<that version>`) to the group above and decide then whether to
+# keep this source for a second CI leg or drop it. `uv.lock` pins the exact
+# commit either way, so this is reproducible today.
+#
+# `[tool.uv.sources]` is uv-only development metadata: it is not written into the
+# wheel, so nobody installing `precursor-kanban` from PyPI inherits it.
+[tool.uv.sources]
+precursor-ai = { git = "https://github.com/lrivallain/precursor", branch = "main" }
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/precursor_kanban"]
 
-# The built frontend (web/vite.config.ts -> src/precursor_kanban/web) is a build
-# product and gitignored, so it must be declared as an artifact to ride along in
-# the sdist; `uv build` builds the wheel *from* the sdist. Precursor serves it at
+# The built frontend (web/ -> src/precursor_kanban/web) is a build product and
+# gitignored, so it must be declared as an artifact to ride along in the sdist;
+# `uv build` builds the wheel *from* the sdist. Precursor serves it at
 # /api/plugins/kanban/assets/*.
 [tool.hatch.build]
 artifacts = ["src/precursor_kanban/web/**"]
 
-# Keep the frontend *sources* out of the distribution — only the built bundle
-# ships.
+# The sdist keeps the frontend *sources* and their toolchain, so it can rebuild
+# itself; only `node_modules` and a stray dev build are dropped. The wheel is
+# narrower by construction — `packages` above ships the Python package alone, so
+# what reaches an installed environment is the compiled bundle and nothing else.
 [tool.hatch.build.targets.sdist]
-exclude = ["web/node_modules", "web/dist"]
+exclude = ["web/node_modules", "web/dist", ".github", ".githooks"]
 
-# CalVer inherited from the host's git tags, so a built-in plugin always ships a
-# version that moves with the commit it was built from.
+# CalVer from this repository's tags. Untagged dev builds get e.g.
+# `2026.9.1.devN+g<sha>.dYYYYMMDD`; the fallback keeps builds working in a
+# shallow checkout with no tags.
 #
-# The static `0.1.0` this replaces looked harmless and silently broke updates:
-# the nightly manifest advertised `precursor_kanban-0.1.0-…whl` at a fixed URL
-# on a reused tag, so every build produced a byte-identical requirement. uv saw
-# `precursor-kanban==0.1.0` already installed, satisfied, and skipped the
-# download — leaving a current host paired with a frozen plugin, which is the
-# exact pairing RELEASING.md promises never happens. Publishing was impossible
-# for the same reason: PyPI rejects re-uploading a version.
-#
-# `root` is the only line tying this to the monorepo. Extracting the plugin to
-# its own repository means dropping it (and tagging there instead); everything
-# else here already stands alone.
+# This used to carry `root = "../.."`, inheriting the host monorepo's tags. That
+# was the last line tying the package to Precursor's release train; dropping it
+# is what makes an independent cadence possible.
 [tool.hatch.version]
 source = "vcs"
-raw-options = { root = "../..", version_scheme = "guess-next-dev", local_scheme = "node-and-date", fallback_version = "0.0.0" }
+
+[tool.hatch.version.raw-options]
+version_scheme = "guess-next-dev"
+local_scheme = "node-and-date"
+fallback_version = "0.0.0"
+
+# Write the resolved version into the package so installed wheels report it
+# without needing git. Gitignored (regenerated at build time).
+[tool.hatch.build.hooks.vcs]
+version-file = "src/precursor_kanban/_version.py"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+# E501: line length handled by the formatter.
+# B008: FastAPI's `Depends()` / `Query()` defaults are the framework idiom.
+ignore = ["E501", "B008"]
+
+[tool.ruff.lint.isort]
+# `precursor` is the host we compile against, not a third-party library — group
+# it with our own imports so the plugin reads the way it did in the monorepo.
+known-first-party = ["precursor", "precursor_kanban"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+plugins = ["pydantic.mypy"]
+exclude = ["web/"]
+# The host does not ship a `py.typed` marker, so mypy would treat every
+# `precursor.*` import as untyped and silently degrade the entire plugin
+# contract — `PluginRegistry`, `IssueDetail`, the GitHub guards — to `Any`.
+# Under `strict = true` that is the worst outcome available: no errors, and no
+# checking of the one boundary most likely to break when the host moves.
+#
+# Following the untyped import makes mypy read the host's actual source instead,
+# which is what the monorepo did implicitly by having it in the same tree. Drop
+# this once the host ships a `py.typed`.
+follow_untyped_imports = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

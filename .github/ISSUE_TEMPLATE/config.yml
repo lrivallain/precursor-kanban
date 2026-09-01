@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Precursor itself
+    url: https://github.com/lrivallain/precursor/issues
+    about: For the app rather than the kanban plugin — chat, topics, MCP, settings.
+  - name: Security vulnerability
+    url: https://github.com/lrivallain/precursor-kanban/security/advisories/new
+    about: Please report privately rather than in a public issue.

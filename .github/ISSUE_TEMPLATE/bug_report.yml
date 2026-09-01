@@ -1,0 +1,64 @@
+name: Bug report
+description: Something in the kanban board doesn't work
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A plugin runs inside a host, so most reports come down to a pairing.
+        **Settings → Plugins** in Precursor shows both versions.
+
+  - type: input
+    id: plugin-version
+    attributes:
+      label: precursor-kanban version
+      placeholder: "2026.9.0"
+    validations:
+      required: true
+
+  - type: input
+    id: host-version
+    attributes:
+      label: Precursor version
+      description: Also shown at `GET /api/version`.
+      placeholder: "2026.9.0"
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you did, what you expected, what you got instead.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Where
+      options:
+        - The board UI (section missing, cards, drag-and-drop, preview)
+        - The API (/api/github/projects)
+        - The MCP tools (kanban.board)
+        - Install / discovery
+        - Something else
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or console output
+      description: >
+        Server logs, and the browser console if the board itself misbehaves —
+        a section that never appears usually says why there.
+      render: shell
+
+  - type: checkboxes
+    id: prerequisites
+    attributes:
+      label: Checked first
+      options:
+        - label: Issue associations are enabled in Settings → GitHub
+        - label: My token carries the `project` scope (`gh auth refresh -s project`)

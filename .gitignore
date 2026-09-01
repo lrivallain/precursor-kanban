@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+.env
+.env.local
+.coverage
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Version file generated at build time by hatch-vcs from git tags.
+src/precursor_kanban/_version.py
+
+# The built frontend. `make build` compiles web/src into the Python package,
+# where it ships inside the wheel and Precursor serves it at
+# /api/plugins/kanban/assets/*. Generated, never committed.
+src/precursor_kanban/web/
+
+# Node / Vite
+node_modules/
+*.log
+npm-debug.log*
+
+# TypeScript build artifacts
+*.tsbuildinfo
+
+# SQLite scratch DBs left by a crashed test run
+*.db
+*.db-journal
+*.sqlite3
+
+# Editors / OS
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db

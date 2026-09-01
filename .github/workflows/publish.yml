@@ -1,0 +1,155 @@
+name: Publish
+
+# Publish a release when a CalVer tag is pushed, e.g. `v2026.9.0`.
+# The version is derived from the tag by hatch-vcs at build time, so the tag is
+# the single source of truth — nothing in the tree records a version.
+#
+# PyPI upload uses **Trusted Publishing** (OIDC), so there is no API token to
+# store or rotate. The publisher registered on PyPI must match this workflow
+# exactly:
+#
+#   PyPI project name : precursor-kanban
+#   Owner             : lrivallain
+#   Repository name   : precursor-kanban
+#   Workflow name     : publish.yml      <- this file's name, not the `name:` above
+#   Environment name  : pypi             <- the `environment:` in the publish job
+#
+# Change any of those four and the upload fails with an OIDC mismatch.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build wheel + sdist
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Full history + tags so hatch-vcs resolves the exact tagged version.
+          fetch-depth: 0
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      # The plugin's UI is built into the Python package, so it ships inside the
+      # wheel. Skip this and the release has a backend, a registered section and
+      # nothing to render for it.
+      - name: Build the frontend bundle
+        run: |
+          npm --prefix web ci
+          npm --prefix web run build
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Build wheel + sdist
+        run: uv build
+
+      - name: Verify the built version matches the tag
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          status=0
+          for whl in dist/*.whl; do
+            name=$(basename "$whl")
+            built=$(echo "$name" | sed -E 's#^[^-]+-([^-]+)-.*#\1#')
+            echo "$name -> $built"
+            # CalVer maps 1:1 onto PEP 440, so these should match exactly. A
+            # mismatch means hatch-vcs resolved from somewhere other than the tag
+            # — usually a shallow checkout.
+            if [ "$tag" != "$built" ]; then
+              echo "::error::$name does not match the tag ($tag)"
+              status=1
+            fi
+          done
+          exit $status
+
+      # The wheel is what users install; assert it actually carries the UI and
+      # the entry point rather than discovering it after publishing.
+      - name: Verify the wheel is complete
+        run: |
+          python3 - <<'PY'
+          import glob, sys, zipfile
+
+          wheel = glob.glob("dist/*.whl")[0]
+          names = set(zipfile.ZipFile(wheel).namelist())
+          required = [
+              "precursor_kanban/web/index.js",
+              "precursor_kanban/plugin.py",
+          ]
+          missing = [n for n in required if n not in names]
+          entry = next((n for n in names if n.endswith("entry_points.txt")), None)
+          if entry is None:
+              missing.append("entry_points.txt")
+          if missing:
+              print(f"::error::{wheel} is missing: {', '.join(missing)}")
+              sys.exit(1)
+          text = zipfile.ZipFile(wheel).read(entry).decode()
+          if "precursor.plugins" not in text:
+              print("::error::wheel does not register the precursor.plugins entry point")
+              sys.exit(1)
+          print(f"{wheel} OK")
+          PY
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: dist
+          path: dist/
+          if-no-files-found: error
+
+  github-release:
+    name: GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # create the release + upload assets
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v3
+        with:
+          # Auto-generate notes from merged PRs since the previous tag.
+          generate_release_notes: true
+          files: |
+            dist/*.whl
+            dist/*.tar.gz
+
+  pypi-publish:
+    name: Publish to PyPI
+    needs: build
+    runs-on: ubuntu-latest
+    # A dedicated environment scopes the trusted publisher (and lets you add
+    # required reviewers, so a tag push alone can't publish).
+    environment:
+      name: pypi
+      url: https://pypi.org/p/precursor-kanban
+    permissions:
+      id-token: write # OIDC token for Trusted Publishing — no API token needed
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1

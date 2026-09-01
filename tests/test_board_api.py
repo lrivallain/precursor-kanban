@@ -240,7 +240,7 @@ def test_board_query_captures_full_item_shape() -> None:
         return _Resp()
 
     async def _run() -> None:
-        client._client.post = _fake_post  # type: ignore[method-assign]
+        client._client.post = _fake_post  # type: ignore[assignment]
         try:
             await client.get_project_board("PVT_1")
         finally:

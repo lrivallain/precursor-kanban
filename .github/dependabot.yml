@@ -1,0 +1,56 @@
+version: 2
+updates:
+  # Python deps (uv-managed; Dependabot reads pyproject.toml).
+  - package-ecosystem: pip
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    # Only raise a floor in pyproject.toml when the latest release no longer
+    # satisfies it (a genuinely breaking floor) or for a security advisory.
+    # Routine releases that already satisfy our coarse `>=` floors produce no
+    # manifest PR — the lockfile stays the source of exact versions.
+    versioning-strategy: increase-if-necessary
+    groups:
+      # Group only minor/patch bumps; majors get their own PR so a breaking
+      # upgrade is never bundled with safe ones.
+      python-minor-patch:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+
+  # The plugin's frontend bundle.
+  - package-ecosystem: npm
+    directory: "/web"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    versioning-strategy: increase-if-necessary
+    # React and its types are pinned to the *host's* major on purpose: this
+    # bundle borrows the host's React instance at runtime, so a major bump here
+    # is only correct once Precursor itself has moved. Left to Dependabot it
+    # would look like a routine upgrade and would produce a plugin that cannot
+    # mount. Bump these by hand, with the host.
+    ignore:
+      - dependency-name: "react"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react-dom"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@types/react"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@types/react-dom"
+        update-types: ["version-update:semver-major"]
+    groups:
+      # Majors (Vite, Tailwind, TypeScript) get their own PR so each migration
+      # is reviewed in isolation.
+      frontend-minor-patch:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+
+  # GitHub Actions used by the CI / publish workflows.
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]

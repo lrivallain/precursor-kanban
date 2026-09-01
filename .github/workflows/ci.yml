@@ -1,0 +1,148 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    # Weekly, for the host-compatibility job below. A plugin breaks when the
+    # *host* moves, which no PR of ours would ever reveal.
+    - cron: "17 6 * * 1"
+
+# Cancel superseded runs on the same ref to save CI minutes.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  lockfiles:
+    name: Lockfiles (public pins · strong hashes)
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # Stdlib-only, so no dependency install is needed to police dependencies.
+      - name: Check lockfiles
+        run: python3 scripts/check_lockfiles.py
+
+  backend:
+    name: Backend (lint · types · tests)
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Full history + tags so hatch-vcs resolves the CalVer version.
+          fetch-depth: 0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      # `--locked` fails instead of silently re-resolving, so a stale or
+      # locally-rewritten uv.lock surfaces here rather than in a release.
+      - name: Sync dependencies
+        run: uv sync --locked
+
+      - name: Ruff lint
+        run: uv run ruff check .
+
+      - name: Ruff format check
+        run: uv run ruff format --check .
+
+      - name: Mypy
+        run: uv run mypy src tests
+
+      # These boot a real Precursor and let it discover the plugin through its
+      # entry point, so they cover the wiring as well as the logic.
+      - name: Pytest
+        run: uv run pytest -q
+
+  frontend:
+    name: Frontend (typecheck · build)
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Type-checks the bundle against `web/types/precursor-host.d.ts`, our
+      # declaration of the host SDK. It is the only thing standing between a
+      # renamed host export and a runtime TypeError in someone's browser.
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+
+      # A bundle that imports React instead of borrowing the host's would put a
+      # second React on the page and every hook in this plugin would throw. The
+      # failure is invisible in a build log, so assert the shape directly.
+      - name: Assert the bundle keeps the host's runtime external
+        working-directory: .
+        run: |
+          bundle=src/precursor_kanban/web/index.js
+          test -f "$bundle" || { echo "::error::no bundle was produced"; exit 1; }
+          missing=0
+          for spec in '"react"' '"@precursor/host"'; do
+            grep -q "from $spec" "$bundle" || {
+              echo "::error::bundle does not import from $spec — is it bundling its own copy?"
+              missing=1
+            }
+          done
+          # A vendored React would drag in its production build banner.
+          if grep -q "react-dom.production" "$bundle"; then
+            echo "::error::bundle contains React itself; it must stay external"
+            missing=1
+          fi
+          exit $missing
+
+  host-compat:
+    name: Host compatibility (precursor main)
+    # Scheduled only. This deliberately ignores the lockfile and resolves the
+    # host afresh, so it answers a question no other job can: "does the plugin
+    # still work against the Precursor people are about to get?" Running it on
+    # every PR would make CI depend on someone else's default branch.
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Sync against the newest host
+        run: uv sync --upgrade-package precursor-ai
+
+      - name: Report the host version under test
+        run: uv run python -c "import precursor; print('precursor', precursor.__version__)"
+
+      - name: Pytest
+        run: uv run pytest -q

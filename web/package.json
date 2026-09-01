@@ -1,0 +1,25 @@
+{
+  "name": "precursor-kanban-web",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Frontend bundle for the precursor-kanban plugin. Built into the Python package, never published to npm.",
+  "scripts": {
+    "build": "vite build",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "lucide-react": "^1.21.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^6.0.2",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^7.0.2",
+    "vite": "^8.1.4"
+  }
+}

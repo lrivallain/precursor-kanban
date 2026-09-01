@@ -1,0 +1,47 @@
+/*
+ * The plugin's own Tailwind utilities.
+ *
+ * In the monorepo this file did not need to exist: the plugin's sources sat
+ * inside the host's git tree, so the host's Tailwind build scanned them and
+ * emitted their utilities into the app stylesheet. Out of tree that is no longer
+ * true — the sources ship as a compiled wheel — and relying on the host to have
+ * happened to use the same class names is exactly the kind of coupling that
+ * breaks silently, at runtime, one host refactor later. So the plugin generates
+ * its own utilities and injects them (see `styles.ts`).
+ *
+ * Two deliberate choices keep that from fighting the host:
+ *
+ * - **No preflight.** Importing `theme.css` + `utilities.css` instead of all of
+ *   `tailwindcss` skips the base reset, which the host has already applied and
+ *   which would otherwise be re-applied on top of the app's own styling.
+ * - **Tokens are re-pointed, not redefined.** `--color-bg` and friends resolve
+ *   to the host's `--bg`, `--surface`, … variables, which the host sets on
+ *   `:root` and swaps under `.dark`. So `bg-surface` here and `bg-surface` in
+ *   the app are the same colour, themed together, and the plugin never carries a
+ *   second copy of the palette that could drift.
+ */
+
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+/* Only scan the plugin's own sources. */
+@source "./src";
+
+/* Dark mode is a `.dark` class on <html> (the host's `lib/theme.ts`), not the OS
+   preference — so override Tailwind's default media-based dark variant exactly
+   as the host does, or every `dark:` utility in this bundle would key off the
+   wrong signal. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-border: var(--border);
+  --color-text: var(--text);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+
+  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", Menlo, monospace;
+}
