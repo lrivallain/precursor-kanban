@@ -31,7 +31,7 @@ classifiers = [
 # its own (an APIRouter, BaseModels, an MCP Server), so they are real runtime
 # requirements even though the host also ships them. `mcp` is capped for the
 # same reason the host caps it: 2.0 renamed the client entry points.
-dependencies = ["fastapi>=0.138", "pydantic>=2.13", "mcp>=1.28,<2"]
+dependencies = ["fastapi>=0.138", "pydantic>=2.13", "mcp>=1.28,<3"]
 
 # Precursor discovers plugins through this entry-point group at startup and
 # calls `register(registry)`. Removing the package removes the section, the
