@@ -94,12 +94,16 @@ jobs:
       - name: Report the result
         id: diff
         run: |
-          if git diff --quiet -- uv.lock web/package-lock.json; then
+          # `git status --porcelain`, not `git diff`: on the very first run the
+          # lockfiles are *untracked*, and `git diff` only compares tracked
+          # paths — so bootstrapping a repository would report "already up to
+          # date" and commit nothing.
+          if [ -z "$(git status --porcelain -- uv.lock web/package-lock.json)" ]; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
             echo "Lockfiles were already up to date."
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
-            git diff --stat -- uv.lock web/package-lock.json
+            git status --short -- uv.lock web/package-lock.json
           fi
 
       # Feature branches get the fix pushed straight back so the contributor can
