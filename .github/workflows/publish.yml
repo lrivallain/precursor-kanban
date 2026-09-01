@@ -57,6 +57,9 @@ jobs:
           enable-cache: true
 
       - name: Build wheel + sdist
+        # Not `--frozen`: releases are cut from tags, and the lockfile pins dev
+        # tooling that has no bearing on what goes in the wheel. `uv build`
+        # reads pyproject.toml.
         run: uv build
 
       - name: Verify the built version matches the tag

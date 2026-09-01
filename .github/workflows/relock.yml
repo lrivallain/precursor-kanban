@@ -7,6 +7,9 @@ name: Relock
 #
 # This is also how the repository gets its *first* lockfiles: they are build
 # products of a clean network, so there is nothing to commit until this runs.
+# Until it has, `uv sync --locked` and `npm ci` in CI have nothing to install
+# from and the backend/frontend jobs fail — expected, and fixed by the first
+# successful run of this workflow.
 
 on:
   workflow_dispatch:
