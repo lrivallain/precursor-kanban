@@ -77,6 +77,8 @@ of each other and of the host's own version.
 | `web/src/styles.css` | The bundle's own Tailwind utilities (see below) |
 | `web/types/precursor-host.d.ts` | Our declaration of the host SDK we compile against |
 | `src/precursor_kanban/web/` | **Built** frontend, shipped in the wheel (gitignored) |
+| `scripts/dev-host.sh` | Provisions and runs a host to load this plugin into |
+| `.github/github-app.yml` | GitHub Copilot app project settings (setup + dev server) |
 
 See Precursor's [plugin documentation](https://lrivallain.github.io/precursor/reference/plugins)
 for the full contract.
@@ -89,6 +91,35 @@ make check    # every gate CI runs
 make test     # the test suite alone
 make build    # rebuild the frontend into the Python package
 ```
+
+### Running it
+
+A plugin has nothing to run on its own. The section, the routes and the MCP
+server only exist inside a host that discovered them through the
+`precursor.plugins` entry point, so seeing the board means running a Precursor
+with this working tree installed into it:
+
+```bash
+make dev-host   # provision a host beside this checkout, plugin installed into it
+make dev        # run its dev stack — Vite HMR + uvicorn --reload
+```
+
+`scripts/dev-host.sh` clones the host's `main` into `.precursor-host/`
+(gitignored, disposable), syncs its environment, and installs this repository
+into it **editable** — so Python changes need only a restart and frontend
+changes only `make build`. `make dev` runs with `--port 0`, meaning the OS picks
+a free port and several checkouts can serve their own board at once; the URL is
+in the startup banner. Override the host with `PRECURSOR_HOST_REPO`,
+`PRECURSOR_HOST_REF`, `PRECURSOR_HOST_DIR` or `PRECURSOR_HOST_EXTRAS`.
+
+The host from `uv sync` is deliberately *not* what this runs. That one is
+resolved from git as a wheel built without its npm step, so it has the backend
+and no SPA — enough for the test suite to boot an app, nothing to look at.
+
+In the **GitHub Copilot app** both steps are already wired up in
+[`.github/github-app.yml`](.github/github-app.yml): `Setup env` runs on session
+create, and `Dev Server` is one click away. Accept the configuration when the
+app offers it.
 
 Four things are worth knowing before changing anything.
 

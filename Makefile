@@ -1,4 +1,4 @@
-.PHONY: help hooks sync build check lockcheck test typecheck wheel clean
+.PHONY: help hooks sync build check lockcheck test typecheck wheel clean dev-host dev
 
 # Lockfiles are resolved by CI, never locally: a corporate package mirror
 # rewrites artifact URLs and weakens their integrity metadata. UV_FROZEN keeps
@@ -29,6 +29,15 @@ build:  ## Build the frontend bundle into the Python package
 typecheck:  ## Type-check the frontend against the host SDK contract
 	npm --prefix web run typecheck
 
+# A plugin can't be run on its own — it needs a host to be discovered by. These
+# two provision that host beside the checkout (`.precursor-host/`, gitignored)
+# and run it with this working tree installed into it, editable.
+dev-host:  ## Provision a Precursor host and install this plugin into it
+	./scripts/dev-host.sh setup
+
+dev:  ## Run the host dev stack with this plugin loaded (OS-assigned port)
+	./scripts/dev-host.sh run
+
 test:  ## Run the test suite
 	uv run pytest -q
 
@@ -50,4 +59,4 @@ wheel: build  ## Build the wheel + sdist
 	uv build
 
 clean:  ## Remove build products
-	rm -rf dist src/precursor_kanban/web src/precursor_kanban/_version.py
+	rm -rf dist src/precursor_kanban/web src/precursor_kanban/_version.py .precursor-host
