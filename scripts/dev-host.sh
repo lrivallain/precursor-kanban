@@ -36,16 +36,69 @@ export UV_FROZEN=1
 
 log() { printf '\n\033[1m==> %s\033[0m\n' "$*"; }
 
-setup_plugin() {
-	log "Plugin environment"
-	uv sync --project "$PLUGIN_DIR"
+# `uv sync --frozen` downloads from the URLs recorded in uv.lock, and those point
+# at files.pythonhosted.org. Managed devices that route packages through a mirror
+# block exactly that host, and `--index` cannot redirect a URL the lockfile
+# already pinned — so a frozen sync is unfixable there.
+#
+# The fallback keeps the lockfile's versions *and* its hashes but lets the
+# configured index serve the artifacts: export the resolution, then install it
+# with `uv pip`, which does consult the index. uv.lock is only ever read. That
+# matters — this repo requires CI to own it (see scripts/check_lockfiles.py), and
+# a plain `uv sync` would rewrite every URL to the mirror.
+sync_project() {
+	local dir="$1"
+	shift
+	if uv sync --project "$dir" "$@"; then
+		return 0
+	fi
+	log "Frozen sync failed — retrying through the configured package index"
+	[ -d "$dir/.venv" ] || uv venv "$dir/.venv" || return 1
+	local req rc=0
+	req="$(mktemp -t dev-host-requirements)" || return 1
+	# Chained explicitly rather than relying on `set -e`: this runs inside an `if`
+	# in cmd_setup, and bash suspends errexit for the whole body of a function
+	# called as a condition — so a failed export would otherwise fall through to
+	# the install and report success.
+	uv export --frozen --no-emit-project --project "$dir" "$@" \
+		--format requirements.txt -o "$req" &&
+		# From inside the project: an export can carry relative `file:`
+		# requirements (the host vendors its built-in plugins that way), and those
+		# resolve against the working directory, not the requirements file.
+		(cd "$dir" && uv pip install --python .venv/bin/python -r "$req") &&
+		# The export omits the project itself, which `uv sync` would have installed.
+		uv pip install --python "$dir/.venv/bin/python" --no-deps --editable "$dir" ||
+		rc=1
+	rm -f "$req"
+	return "$rc"
+}
 
+# The npm counterpart of the same problem. `npm ci` installs *from* the lockfile
+# without rewriting it, which is the right default — but a mirror that lags the
+# public registry simply will not have every tarball a CI-resolved lockfile pins,
+# and `ci` has no way to settle for what is there. `install --no-package-lock`
+# resolves against what the mirror carries and, crucially, still never writes
+# package-lock.json. (It is what the host's own setup does for `frontend/`.)
+npm_install() {
+	local prefix="$1"
+	if npm --prefix "$prefix" ci; then
+		return 0
+	fi
+	log "npm ci failed — resolving through the registry instead (lockfile untouched)"
+	npm --prefix "$prefix" install --no-package-lock
+}
+
+setup_plugin_bundle() {
 	log "Plugin frontend bundle"
-	# `npm ci` (not `install`) installs *from* the lockfile without rewriting it.
-	npm --prefix "$PLUGIN_DIR/web" ci
+	npm_install "$PLUGIN_DIR/web"
 	# The host imports this at runtime; without it the section is advertised and
 	# then silently has nothing to load.
 	make -C "$PLUGIN_DIR" build
+}
+
+setup_plugin_env() {
+	log "Plugin environment (for the test suite)"
+	sync_project "$PLUGIN_DIR"
 }
 
 setup_host_checkout() {
@@ -68,10 +121,10 @@ setup_host_env() {
 	for extra in $HOST_EXTRAS; do extra_args+=(--extra "$extra"); done
 	# `${a[@]+"${a[@]}"}` — bash 3.2 (macOS) treats a bare "${a[@]}" on an empty
 	# array as an unbound variable under `set -u`.
-	uv sync --project "$HOST_DIR" ${extra_args[@]+"${extra_args[@]}"}
+	sync_project "$HOST_DIR" ${extra_args[@]+"${extra_args[@]}"}
 
 	log "Host frontend"
-	npm --prefix "$HOST_DIR/frontend" install --no-package-lock
+	npm_install "$HOST_DIR/frontend"
 	# `--dev` builds this on first boot if it's missing; doing it here keeps that
 	# cost in session setup instead of in front of the dev server.
 	npm --prefix "$HOST_DIR/frontend" run build
@@ -85,10 +138,27 @@ setup_host_env() {
 }
 
 cmd_setup() {
-	setup_plugin
+	setup_plugin_bundle
 	setup_host_checkout
 	setup_host_env
-	log "Ready — start it with: scripts/dev-host.sh run"
+	log "Host ready — start it with: scripts/dev-host.sh run"
+	# Last, deliberately, and non-fatal. Only the test suite needs this
+	# environment, and it is the one step that can fail on its own: it resolves
+	# the host from git and pins versions a package mirror may not carry yet.
+	# Failing the whole setup over it would report a red session even though the
+	# Dev Server above is ready — so say so plainly and leave the host standing.
+	if setup_plugin_env; then
+		log "Ready"
+	else
+		cat >&2 <<-'EOF'
+
+			warning: the plugin's own environment was not installed, so `make test`
+			         and `make check` will not run yet. The host above is unaffected.
+			         The usual cause is a package mirror that has not ingested the
+			         versions uv.lock pins; retry `make dev-host` on a network with
+			         access to the public indexes.
+		EOF
+	fi
 }
 
 cmd_run() {

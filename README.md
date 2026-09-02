@@ -116,6 +116,16 @@ The host from `uv sync` is deliberately *not* what this runs. That one is
 resolved from git as a wheel built without its npm step, so it has the backend
 and no SPA — enough for the test suite to boot an app, nothing to look at.
 
+**On a device that routes packages through a mirror**, `uv sync --frozen` cannot
+work here: it downloads the `files.pythonhosted.org` URLs recorded in `uv.lock`,
+which such devices block, and `--index` cannot redirect a URL the lockfile
+already pinned. The script falls back to `uv export` + `uv pip install`, which
+keeps the locked versions *and* their hashes but lets the configured index serve
+them; `npm ci` falls back to `npm install --no-package-lock` for the same reason.
+Neither lockfile is ever written — CI owns both. If the mirror is behind on a
+pinned version the plugin's own environment may still fail; the host is set up
+first, so `make dev` works regardless and only `make test` has to wait.
+
 In the **GitHub Copilot app** both steps are already wired up in
 [`.github/github-app.yml`](.github/github-app.yml): `Setup env` runs on session
 create, and `Dev Server` is one click away. Accept the configuration when the
