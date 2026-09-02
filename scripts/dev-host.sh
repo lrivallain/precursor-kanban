@@ -24,6 +24,31 @@
 #
 set -euo pipefail
 
+# The app runs these scripts from a terminal that is not a login shell, so PATH
+# can arrive without Homebrew or ~/.local/bin on it — and then `uv` simply isn't
+# there. Append (never prepend) the usual locations, so anything the caller put
+# in front deliberately still wins.
+for _dir in /opt/homebrew/bin /usr/local/bin "$HOME/.local/bin" "$HOME/.cargo/bin"; do
+	case ":$PATH:" in
+	*":$_dir:"*) ;;
+	*)
+		if [ -d "$_dir" ]; then PATH="$PATH:$_dir"; fi
+		;;
+	esac
+done
+export PATH
+unset _dir
+
+require() {
+	for tool in "$@"; do
+		if ! command -v "$tool" >/dev/null 2>&1; then
+			echo "$tool not found on PATH — install it, or add its directory to PATH." >&2
+			echo "PATH=$PATH" >&2
+			exit 127
+		fi
+	done
+}
+
 PLUGIN_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 HOST_DIR="${PRECURSOR_HOST_DIR:-$PLUGIN_DIR/.precursor-host}"
 HOST_REPO="${PRECURSOR_HOST_REPO:-https://github.com/lrivallain/precursor.git}"
@@ -138,6 +163,7 @@ setup_host_env() {
 }
 
 cmd_setup() {
+	require uv git npm make
 	setup_plugin_bundle
 	setup_host_checkout
 	setup_host_env
@@ -162,6 +188,8 @@ cmd_setup() {
 }
 
 cmd_run() {
+	# npm/node too: `--dev` starts the host's Vite server as a child process.
+	require uv npm
 	if [ ! -x "$HOST_DIR/.venv/bin/precursor" ]; then
 		echo "No host environment at $HOST_DIR — run: scripts/dev-host.sh setup" >&2
 		exit 1
