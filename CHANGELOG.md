@@ -9,7 +9,7 @@ Entries before the extraction are in
 [Precursor's changelog](https://github.com/lrivallain/precursor/blob/main/CHANGELOG.md),
 where this plugin shipped as a built-in.
 
-## [Unreleased]
+## [2026.9.0] - 2026-09-02
 
 ### Added
 
@@ -44,6 +44,13 @@ where this plugin shipped as a built-in.
   external, and that the stylesheet shipped. These cover the failure an
   out-of-tree plugin is most exposed to and no other test can see: a wheel that
   installs cleanly, answers every API call, and renders nothing.
+- **A way to actually run it** (`scripts/dev-host.sh`, `make dev-host` / `make
+  dev`). A plugin has nothing to run on its own — the section, the routes and
+  the MCP server only exist inside a host that discovered them — so setup
+  provisions a Precursor checkout beside this one and installs the working tree
+  into it *editable*, and `make dev` boots that host's dev stack on an
+  OS-assigned port. `.github/github-app.yml` wires the same two steps into the
+  GitHub Copilot app, as a session-create script and a run script.
 
 ### Changed
 
