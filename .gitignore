@@ -22,6 +22,10 @@ src/precursor_kanban/_version.py
 # /api/plugins/kanban/assets/*. Generated, never committed.
 src/precursor_kanban/web/
 
+# A throwaway checkout of the host, provisioned by scripts/dev-host.sh so this
+# plugin has something to run inside. Disposable: delete it and re-run setup.
+.precursor-host/
+
 # Node / Vite
 node_modules/
 *.log
