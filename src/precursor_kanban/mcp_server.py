@@ -12,11 +12,17 @@ someone's project board unprompted is not a feature.
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+from contextlib import contextmanager
+from importlib.metadata import version
 from typing import Any
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.mcpserver import MCPServer
+from mcp.server.mcpserver.exceptions import ToolError
 
 from precursor.plugin_api import (
+    GitHubInsufficientScopeError,
+    GitHubRepoNotAccessibleError,
     SessionLocal,
     resolve_github_token,
     resolve_global_github_repo,
@@ -25,10 +31,31 @@ from precursor.plugin_api import (
 from precursor_kanban.client import ProjectsClient
 from precursor_kanban.sources import board_config
 
-mcp = FastMCP("kanban")
+# Name positional, everything else by keyword: MCP 2 inserted `title` and
+# `description` into the positional order. The version is ours, not the SDK's —
+# MCP 1 reported the installed `mcp` version here, MCP 2 reports nothing unless
+# told.
+mcp = MCPServer("kanban", version=version("precursor-kanban"))
 
 #: Settings namespace, matching ``plugin.SECTION_ID``.
 SECTION_ID = "kanban"
+
+
+@contextmanager
+def _explained() -> Iterator[None]:
+    """Let the model read why a GitHub call failed, as MCP 1 always did.
+
+    MCP 2 passes a tool's own words to the model only for a ``ToolError``;
+    anything else arrives as a bare "Error executing tool …", with the text left
+    in the server log. These failures carry their remedy in the message — grant
+    the ``project`` scope, check the owner or the project id — so they are
+    anticipated, not crashes. ``_client`` raises ``ToolError`` itself for the
+    same reason.
+    """
+    try:
+        yield
+    except (ValueError, GitHubInsufficientScopeError, GitHubRepoNotAccessibleError) as exc:
+        raise ToolError(str(exc)) from exc
 
 
 async def _client() -> tuple[ProjectsClient, str | None]:
@@ -40,13 +67,13 @@ async def _client() -> tuple[ProjectsClient, str | None]:
     """
     async with SessionLocal() as session:
         if not await resolve_issue_associations_enabled(session):
-            raise ValueError(
+            raise ToolError(
                 "GitHub issue associations are disabled. Enable them in Settings → GitHub."
             )
         repo = await resolve_global_github_repo(session)
         token = await resolve_github_token(session)
     if not token:
-        raise ValueError(
+        raise ToolError(
             "No GitHub token available. Configure one in Settings or run `gh auth login`."
         )
     return ProjectsClient(token=token), repo
@@ -64,7 +91,8 @@ async def list_boards() -> list[dict[str, Any]]:
     try:
         boards: list[dict[str, Any]] = []
         if repo:
-            boards.extend(await client.list_repo_projects(repo))
+            with _explained():
+                boards.extend(await client.list_repo_projects(repo))
         for source in (await board_config(SECTION_ID)).sources:
             try:
                 if source.number is not None:
@@ -94,7 +122,8 @@ async def get_board(project_id: str) -> dict[str, Any]:
     """
     client, _repo = await _client()
     try:
-        return await client.get_project_board(project_id)
+        with _explained():
+            return await client.get_project_board(project_id)
     finally:
         await client.aclose()
 
@@ -108,7 +137,8 @@ async def board_summary(project_id: str) -> dict[str, Any]:
     """
     client, _repo = await _client()
     try:
-        board = await client.get_project_board(project_id)
+        with _explained():
+            board = await client.get_project_board(project_id)
     finally:
         await client.aclose()
     counts: dict[str, int] = {}

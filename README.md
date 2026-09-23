@@ -37,16 +37,22 @@ group; no configuration is needed.
 
 The plugin targets two versioned contracts — `precursor.plugin_api` on the
 Python side and `@precursor/host` on the frontend side. They move independently
-of each other and of the host's own version.
+of each other and of the host's own version. Its MCP server also runs in the
+host's environment, so the plugin and the host must agree on one MCP SDK major.
 
-| precursor-kanban | Python contract | Frontend contract |
-| --- | --- | --- |
-| `2026.9.*` | `PLUGIN_API_VERSION` 1 | `HOST_API_VERSION` 2 |
+| precursor-kanban | Python contract | Frontend contract | MCP SDK |
+| --- | --- | --- | --- |
+| `2026.9.0` | `PLUGIN_API_VERSION` 1 | `HOST_API_VERSION` 2 | `mcp>=1.28,<2` |
+| next release | `PLUGIN_API_VERSION` 1 | `HOST_API_VERSION` 2 | `mcp>=2.2,<3` |
 
 > **Requires a Precursor newer than `2026.7.0`.**
 > `precursor.plugin_api` — the entire surface this package compiles against —
 > landed on Precursor's `main` after that release, so `2026.7.0` cannot load
 > this plugin at all. Use a host built from `main`, or the next release.
+>
+> **From the next release on, requires a Precursor on MCP 2**
+> (lrivallain/precursor#345). On a host still running MCP 1, the board works
+> but the `kanban.board` MCP server can't start.
 
 ## Requirements
 

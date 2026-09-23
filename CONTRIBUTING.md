@@ -61,6 +61,12 @@ The host is resolved from **git `main`**, not PyPI, declared in
 landed after the host's `2026.7.0` release, so a suite resolved from PyPI cannot
 even import. `uv.lock` pins the exact commit, so it stays reproducible.
 
+> **Temporarily, not `main`:** while the move to MCP 2 lands (#8), the source
+> points at the host's `lrivallain-mcp-2-support` branch. This plugin requires
+> `mcp>=2.2`, and the host's `main` imports MCP 1 until
+> lrivallain/precursor#345 merges. Once it does, point the source back at
+> `main` and relock.
+
 Two consequences:
 
 - **A weekly CI job (`host-compat`) re-resolves the host** and runs the suite
