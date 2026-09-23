@@ -29,9 +29,14 @@ classifiers = [
 #
 # These three are the libraries the plugin genuinely constructs objects from on
 # its own (an APIRouter, BaseModels, an MCP Server), so they are real runtime
-# requirements even though the host also ships them. `mcp` is capped for the
-# same reason the host caps it: 2.0 renamed the client entry points.
-dependencies = ["fastapi>=0.138", "pydantic>=2.13", "mcp>=1.28,<3"]
+# requirements even though the host also ships them.
+#
+# `mcp` is MCP 2 only, and deliberately the same bound as the host's. The server
+# runs as a subprocess of the host's interpreter, so both always share one SDK:
+# a range wider than the host's lets the resolver pair this plugin with an SDK
+# its code cannot import (2.0 renamed `FastMCP` to `MCPServer`). The cap is for
+# the same reason — a 3.0 would be a code change here, not a dependency bump.
+dependencies = ["fastapi>=0.138", "pydantic>=2.13", "mcp>=2.2,<3"]
 
 # Precursor discovers plugins through this entry-point group at startup and
 # calls `register(registry)`. Removing the package removes the section, the
@@ -87,8 +92,14 @@ dev = [
 #
 # `[tool.uv.sources]` is uv-only development metadata: it is not written into the
 # wheel, so nobody installing `precursor-kanban` from PyPI inherits it.
+#
+# TEMPORARY: pinned to the host's MCP 2 branch, not `main`. This plugin requires
+# `mcp>=2.2`, and the host's `main` still imports MCP 1's client API until
+# lrivallain/precursor#345 lands — which in turn waits for a release of this
+# plugin that accepts MCP 2 (see #8 for the sequencing). Point this back at
+# `branch = "main"` and relock once that PR is merged.
 [tool.uv.sources]
-precursor-ai = { git = "https://github.com/lrivallain/precursor", branch = "main" }
+precursor-ai = { git = "https://github.com/lrivallain/precursor", branch = "lrivallain-mcp-2-support" }
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/precursor_kanban"]

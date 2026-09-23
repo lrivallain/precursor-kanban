@@ -9,6 +9,44 @@ Entries before the extraction are in
 [Precursor's changelog](https://github.com/lrivallain/precursor/blob/main/CHANGELOG.md),
 where this plugin shipped as a built-in.
 
+## [Unreleased]
+
+### Changed
+
+- **MCP 2 only (`mcp>=2.2,<3`).** The MCP server runs in Precursor's own
+  environment, so the plugin now requires the same SDK major as the host, and
+  MCP 1 is no longer supported. `mcp_server.py` uses `MCPServer`, the name MCP 2
+  gave `FastMCP`. On MCP 2, `mcp.server.fastmcp` no longer exists, so the
+  `kanban.board` server died at startup while the board itself kept working
+  ([#8](https://github.com/lrivallain/precursor-kanban/issues/8)). **Requires a
+  Precursor on MCP 2** (lrivallain/precursor#345).
+- The server now reports the plugin's own version in `serverInfo`. MCP 1 filled
+  in the SDK's version, and MCP 2 leaves the field empty.
+
+### Fixed
+
+- **Tool errors tell the model how to fix them again.** MCP 2 only passes a
+  tool's own error message to the model when it raises `ToolError`. Any other
+  exception reaches the model as a bare "Error executing tool …". The board's
+  anticipated failures, which are a disabled integration, no token, a missing
+  `project` scope, and an unknown owner or project, are now raised as
+  `ToolError`, so their remedy reaches the model as it did under MCP 1.
+
+### Added
+
+- **Tests for the MCP server** (`tests/test_mcp_server.py`), against the real
+  SDK. They list and call the tools in process through `mcp.Client`, and they
+  have Precursor launch the server from the plugin's catalogue entry as a stdio
+  subprocess, as it does in production, then call `list_boards` there. Until
+  now nothing in the suite imported the module, which is why the rename passed
+  CI.
+
+### Development
+
+- The test suite temporarily resolves the host from its MCP 2 branch
+  (`lrivallain-mcp-2-support`) rather than `main`, until lrivallain/precursor#345
+  merges.
+
 ## [2026.9.0] - 2026-09-02
 
 ### Added
