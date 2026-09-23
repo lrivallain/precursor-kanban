@@ -102,6 +102,7 @@ function KanbanMain({ host }: { host: SectionHost }) {
     activeProjectId,
     selectedNumber,
     setSelectedNumber,
+    reportOpenCard,
     fallbackRepo,
     openTopic,
   } = useKanban();
@@ -121,6 +122,7 @@ function KanbanMain({ host }: { host: SectionHost }) {
         fallbackRepo={fallbackRepo}
         selectedNumber={selectedNumber}
         onSelectedNumberChange={setSelectedNumber}
+        onOpenCardChange={reportOpenCard}
         onOpenTopic={openTopic}
       />
     );

@@ -53,6 +53,12 @@ host's environment, so the plugin and the host must agree on one MCP SDK major.
 > **From `2026.9.1` on, requires a Precursor on MCP 2**
 > (lrivallain/precursor#345). On a host still running MCP 1, the board works
 > but the `kanban.board` MCP server can't start.
+>
+> **Naming the open board in the browser tab needs a Precursor whose section
+> host has `setPageTitle`** (lrivallain/precursor#358). It is on Precursor's
+> `main` and in the nightly, but not in any release yet, including `2026.9.0`.
+> It is additive, so on an older host everything works and the tab keeps its
+> old title.
 
 ## Requirements
 
