@@ -9,6 +9,22 @@ Entries before the extraction are in
 [Precursor's changelog](https://github.com/lrivallain/precursor/blob/main/CHANGELOG.md),
 where this plugin shipped as a built-in.
 
+## [Unreleased]
+
+### Added
+
+- **The browser tab names the open board.** With a board open, the tab reads
+  `<board> · Kanban · Precursor` instead of `Kanban · Precursor`, and so does
+  each entry in the Back/Forward history menu. Opening a card's preview puts
+  the card first, for example `Fix login (#123) · <board> · Kanban · Precursor`,
+  so the history menu also lists the cards you opened. Only state with its own
+  URL is named, which is the board (a path segment) and a numbered card (the
+  `#<n>` hash). A draft item's preview has no URL, so it leaves the title alone.
+  The plugin reports the title through `host.setPageTitle`, which Precursor
+  adds without a `HOST_API_VERSION` bump (lrivallain/precursor#358, not yet in a
+  release). On a host without it, the tab keeps its old title and nothing else
+  changes ([#10](https://github.com/lrivallain/precursor-kanban/issues/10)).
+
 ## [2026.9.1] - 2026-09-23
 
 ### Changed

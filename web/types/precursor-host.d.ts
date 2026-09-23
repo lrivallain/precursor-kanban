@@ -136,6 +136,16 @@ declare module "@precursor/host" {
     openTopic: (topicId: number) => void;
     /** Open the Settings modal, on a plugin's own page when one is named. */
     openSettings: (pluginPageId?: string) => void;
+    /**
+     * Name the open item for the browser tab (`<title> · <label> · Precursor`);
+     * `null` falls back to the label. Core forgets it when the user leaves the
+     * section.
+     *
+     * Optional here although the host declares it required: it was added
+     * without a `HOST_API_VERSION` bump, so an older host simply doesn't have
+     * it. Always call it as `host.setPageTitle?.(…)`.
+     */
+    setPageTitle?: (title: string | null) => void;
     /** App settings, or `null` while they load. */
     settings: Settings | null;
   }

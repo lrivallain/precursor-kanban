@@ -4,6 +4,7 @@ import type { ProjectBoard, ProjectCard } from "./types";
 import { apiErrorMessage, IssueLabelChip } from "@precursor/host";
 import { kanbanApi } from "./api";
 import { IssuePreviewModal } from "./IssuePreviewModal";
+import type { OpenCard } from "./KanbanContext";
 
 interface KanbanBoardProps {
   projectId: string;
@@ -16,6 +17,12 @@ interface KanbanBoardProps {
   selectedNumber?: number | null;
   /** Report the previewed card's number so the URL hash can track it. */
   onSelectedNumberChange?: (n: number | null) => void;
+  /**
+   * Report which card's preview is open, so the browser tab can name it. Only
+   * the card the hash addresses is reported. A draft item's preview has no
+   * `#<n>` of its own, so it never is.
+   */
+  onOpenCardChange?: (card: OpenCard | null) => void;
   /** Open the Precursor topic linked to an issue (from the preview modal). */
   onOpenTopic?: (topicId: number) => void;
 }
@@ -46,6 +53,7 @@ export function KanbanBoard({
   fallbackRepo,
   selectedNumber,
   onSelectedNumberChange,
+  onOpenCardChange,
   onOpenTopic,
 }: KanbanBoardProps) {
   const [board, setBoard] = useState<ProjectBoard | null>(null);
@@ -119,6 +127,17 @@ export function KanbanBoard({
       return found ?? cur;
     });
   }, [selectedNumber, board]);
+
+  // Only the preview the URL addresses is named in the tab (see onOpenCardChange).
+  const namedCard =
+    previewCard?.number != null && previewCard.number === selectedNumber ? previewCard : null;
+  const namedNumber = namedCard?.number ?? null;
+  const namedTitle = namedCard?.title ?? null;
+  useEffect(() => {
+    if (namedNumber == null || namedTitle == null) return;
+    onOpenCardChange?.({ number: namedNumber, title: namedTitle });
+    return () => onOpenCardChange?.(null);
+  }, [onOpenCardChange, namedNumber, namedTitle]);
 
   const columns = useMemo<Column[]>(() => {
     if (!board) return [];

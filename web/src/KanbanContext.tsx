@@ -29,6 +29,12 @@ import { kanbanApi, kanbanSettings } from "./api";
 import { projectKey } from "./sources";
 import type { ProjectSummary, UnresolvedSource } from "./types";
 
+/** The numbered card whose preview is open, as the board reports it. */
+export interface OpenCard {
+  number: number;
+  title: string;
+}
+
 interface KanbanContextValue {
   projects: ProjectSummary[] | null;
   /** Configured sources that currently produce no board of their own. */
@@ -40,6 +46,8 @@ interface KanbanContextValue {
   /** Issue/PR number whose preview is open, mirrored in the URL hash. */
   selectedNumber: number | null;
   setSelectedNumber: (n: number | null) => void;
+  /** The board says which numbered card's preview is open, for the tab title. */
+  reportOpenCard: (card: OpenCard | null) => void;
   /** Configured repo, for previewing cards that carry no repo of their own. */
   fallbackRepo: string;
   openTopic: (topicId: number) => void;
@@ -120,6 +128,50 @@ function parseHashNumber(hash: string): number | null {
   return Number.isSafeInteger(n) && n > 0 ? n : null;
 }
 
+/**
+ * What the browser tab names: the open board, led by its open card.
+ *
+ * Only URL-backed state counts. The board is the path segment and the card is
+ * the hash. A history entry keeps the title it had while it was current, so
+ * naming state that has no URL of its own would mislabel the entry it opened
+ * over. That is also why the card must match the hash in this very render:
+ * after Back, the board's report of the closed card lags by a commit.
+ */
+function pageTitleFor(
+  board: ProjectSummary | null,
+  card: OpenCard | null,
+  hashNumber: number | null,
+): string | null {
+  if (!board) return null;
+  if (card && card.number === hashNumber) {
+    return `${card.title} (#${card.number}) · ${board.title}`;
+  }
+  return board.title;
+}
+
+/**
+ * Report `title` for the browser tab, and withdraw it when the section unmounts.
+ *
+ * Core rebuilds `host` on every section navigation. A single `[host, title]`
+ * effect would therefore withdraw and re-report the same title on each click,
+ * costing the host a spare render. The host ignores a repeated title, so
+ * re-reporting through a new setter is free, and only the unmount cleanup needs
+ * the latest setter, which it reads from a ref.
+ *
+ * `setPageTitle` is absent on hosts that predate it, hence the `?.` calls.
+ */
+function usePageTitle(
+  setPageTitle: SectionHost["setPageTitle"],
+  title: string | null,
+): void {
+  const latest = useRef(setPageTitle);
+  useEffect(() => {
+    latest.current = setPageTitle;
+    setPageTitle?.(title);
+  }, [setPageTitle, title]);
+  useEffect(() => () => latest.current?.(null), []);
+}
+
 export function KanbanProvider({
   host,
   children,
@@ -134,6 +186,7 @@ export function KanbanProvider({
   const [reloadToken, setReloadToken] = useState(0);
   const [addOpen, setAddOpen] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [openCard, setOpenCard] = useState<OpenCard | null>(null);
 
   const githubRepo = (host.settings?.github_repo ?? "").trim();
   const urlNumber = projectRefNumber(host.segments[0]);
@@ -208,6 +261,11 @@ export function KanbanProvider({
     lastUrl.current = key;
     host.navigate(segments, hash);
   }, [active, hashNumber, host, projects]);
+
+  // Name the board (and card) in the tab. Every push happens synchronously in
+  // a click handler (`selectProject`, `setSelectedNumber`), and core writes
+  // `document.title` in a later commit, so the new title lands on the new entry.
+  usePageTitle(host.setPageTitle, pageTitleFor(active, openCard, hashNumber));
 
   const selectProject = useCallback(
     (project: ProjectSummary) => {
@@ -296,6 +354,7 @@ export function KanbanProvider({
       selectProject,
       selectedNumber: hashNumber,
       setSelectedNumber,
+      reportOpenCard: setOpenCard,
       fallbackRepo: githubRepo,
       openTopic: host.openTopic,
       refreshProjects,
