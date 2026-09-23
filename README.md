@@ -44,6 +44,7 @@ host's environment, so the plugin and the host must agree on one MCP SDK major.
 | --- | --- | --- | --- |
 | `2026.9.0` | `PLUGIN_API_VERSION` 1 | `HOST_API_VERSION` 2 | `mcp>=1.28,<2` |
 | `2026.9.1` | `PLUGIN_API_VERSION` 1 | `HOST_API_VERSION` 2 | `mcp>=2.2,<3` |
+| `2026.9.2` | `PLUGIN_API_VERSION` 1 | `HOST_API_VERSION` 2 | `mcp>=2.2,<3` |
 
 > **Requires a Precursor newer than `2026.7.0`.**
 > `precursor.plugin_api` — the entire surface this package compiles against —
@@ -54,11 +55,11 @@ host's environment, so the plugin and the host must agree on one MCP SDK major.
 > (lrivallain/precursor#345). On a host still running MCP 1, the board works
 > but the `kanban.board` MCP server can't start.
 >
-> **Naming the open board in the browser tab needs a Precursor whose section
-> host has `setPageTitle`** (lrivallain/precursor#358). It is on Precursor's
-> `main` and in the nightly, but not in any release yet, including `2026.9.0`.
-> It is additive, so on an older host everything works and the tab keeps its
-> old title.
+> **From `2026.9.2` on, the browser tab names the open board, but only on a
+> Precursor whose section host has `setPageTitle`** (lrivallain/precursor#358).
+> It is on Precursor's `main` and in the nightly, but not in any release yet,
+> including `2026.9.0`. It is additive, so on an older host everything works
+> and the tab keeps its old title.
 
 ## Requirements
 
