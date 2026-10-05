@@ -45,6 +45,7 @@ host's environment, so the plugin and the host must agree on one MCP SDK major.
 | `2026.9.0` | `PLUGIN_API_VERSION` 1 | `HOST_API_VERSION` 2 | `mcp>=1.28,<2` |
 | `2026.9.1` | `PLUGIN_API_VERSION` 1 | `HOST_API_VERSION` 2 | `mcp>=2.2,<3` |
 | `2026.9.2` | `PLUGIN_API_VERSION` 1 | `HOST_API_VERSION` 2 | `mcp>=2.2,<3` |
+| `2026.10.0` | `PLUGIN_API_VERSION` 1 | `HOST_API_VERSION` 2 | `mcp>=2.2,<3` |
 
 > **Requires a Precursor newer than `2026.7.0`.**
 > `precursor.plugin_api` — the entire surface this package compiles against —
