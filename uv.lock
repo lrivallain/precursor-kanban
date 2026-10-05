@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.12"
 resolution-markers = [
     "python_full_version >= '3.15' and sys_platform == 'win32'",
@@ -1054,8 +1054,8 @@ wheels = [
 
 [[package]]
 name = "precursor-ai"
-version = "2026.9.1.dev18+gb1d1df937"
-source = { git = "https://github.com/lrivallain/precursor?branch=lrivallain-mcp-2-support#b1d1df9372e10af5c391ce0594521596362dea57" }
+version = "2026.10.2.dev5+g315296bd1"
+source = { git = "https://github.com/lrivallain/precursor?branch=main#315296bd17d84dd2fe5a69b4f87ae204fdee94a2" }
 dependencies = [
     { name = "aiosqlite" },
     { name = "alembic" },
@@ -1106,7 +1106,7 @@ requires-dist = [
 dev = [
     { name = "httpx", specifier = ">=0.28" },
     { name = "mypy", specifier = ">=2.1" },
-    { name = "precursor-ai", git = "https://github.com/lrivallain/precursor?branch=lrivallain-mcp-2-support" },
+    { name = "precursor-ai", git = "https://github.com/lrivallain/precursor?branch=main" },
     { name = "pytest", specifier = ">=9.1" },
     { name = "pytest-asyncio", specifier = ">=1.4" },
     { name = "pytest-cov", specifier = ">=7.1" },

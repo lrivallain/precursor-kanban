@@ -9,6 +9,15 @@ Entries before the extraction are in
 [Precursor's changelog](https://github.com/lrivallain/precursor/blob/main/CHANGELOG.md),
 where this plugin shipped as a built-in.
 
+## [Unreleased]
+
+### Development
+
+- The test suite resolves the host from its `main` branch again, now that
+  lrivallain/precursor#345 has brought MCP 2 there. It no longer tracks the
+  `lrivallain-mcp-2-support` branch, which stopped receiving updates
+  ([#15](https://github.com/lrivallain/precursor-kanban/issues/15)).
+
 ## [2026.9.2] - 2026-09-23
 
 ### Added
