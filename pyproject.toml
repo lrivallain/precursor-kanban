@@ -92,14 +92,8 @@ dev = [
 #
 # `[tool.uv.sources]` is uv-only development metadata: it is not written into the
 # wheel, so nobody installing `precursor-kanban` from PyPI inherits it.
-#
-# TEMPORARY: pinned to the host's MCP 2 branch, not `main`. This plugin requires
-# `mcp>=2.2`, and the host's `main` still imports MCP 1's client API until
-# lrivallain/precursor#345 lands — which in turn waits for a release of this
-# plugin that accepts MCP 2 (see #8 for the sequencing). Point this back at
-# `branch = "main"` and relock once that PR is merged.
 [tool.uv.sources]
-precursor-ai = { git = "https://github.com/lrivallain/precursor", branch = "lrivallain-mcp-2-support" }
+precursor-ai = { git = "https://github.com/lrivallain/precursor", branch = "main" }
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/precursor_kanban"]
